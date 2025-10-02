@@ -5,6 +5,8 @@
   <title>Open EO Viewer (Leaflet + GIBS)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+    <base href="/openeo/"> 
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -14,7 +16,6 @@
   <style>
     html, body, #map { height: 100%; margin: 0; }
     .toolbar {
-      /* FIX: Increased z-index to ensure toolbar is on top of the map */
       position: absolute; z-index: 1001; top: 10px; left: 10px; 
       background: rgba(255,255,255,.92); backdrop-filter: blur(4px);
       border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.12);
@@ -48,7 +49,7 @@
   </div>
 
   <script>
-    // --- Leaflet Path Fix (Necessary for GitHub Project Pages Deployment) ---
+    // --- Leaflet Path Fix (Still needed for direct image paths) ---
     L.Icon.Default.imagePath = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 
     // --- Map setup -----------------------------------------------------------
@@ -69,7 +70,6 @@
     map.attributionControl.addAttribution('© Leaflet contributors');
     
     // FIX: Force Leaflet to re-render the map *before* adding tiles.
-    // This often ensures correct tile positioning in deployed environments.
     map.invalidateSize();
 
     // --- Drawing layer + controls -------------------------------------------
@@ -176,8 +176,7 @@
     todayButton.addEventListener('click', setToToday);
     // ------------------------------------------------------------------------
     
-    // FIX: Force a layer redraw with a short delay to ensure tiles are rendered.
-    // This is the most common fix when WMS tiles are requested but not drawn.
+    // FIX: Final layer redraw to ensure tiles are rendered after map sizing.
     setTimeout(() => {
         if (currentImageryLayer) {
             currentImageryLayer.redraw();
