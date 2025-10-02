@@ -1,152 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Open EO Viewer (Leaflet + OSM Test)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" />
+  <title>Open EO Viewer (Leaflet + GIBS WMTS)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css">
-  <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
-    
-      <style>
-    /* Aggressive CSS Sizing */
-    html, body { height: 100%; margin: 0; }
-    #map { 
-        height: 100vh; 
-        width: 100vw; 
-        position: relative; 
-        background: #f0f0f0; /* Light background for easy visibility */
-    } 
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
-    .toolbar {
-      position: absolute; 
-      z-index: 99999;
-      top: 10px; 
-      left: 10px; 
-      
-      background: rgba(255,255,255,0.95); 
-      border-radius: 8px; 
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      padding: 10px; 
-      font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-    }
-    .toolbar label { margin-right: 6px; font-weight: 600; }
-    .toolbar select, .toolbar input[type="date"], .toolbar button {
-      font: inherit; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px;
-      background: #fff; margin-right: 6px;
-    }
-    .toolbar button { cursor: pointer; }
-    .leaflet-control-attribution { font-size: 11px; }
-  </style>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #map {
+      height: 100vh;
+      width: 100vw;
+      position: relative;
+      background: #000;
+    }
+
+    .toolbar {
+      position: absolute;
+      z-index: 99999;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.95);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      padding: 10px;
+      font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    .toolbar label { margin-right: 6px; font-weight: 600; }
+    .toolbar select, .toolbar input[type="date"], .toolbar button {
+      font: inherit; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px;
+      background: #fff; margin-right: 6px;
+    }
+    .toolbar button { cursor: pointer; }
+    .leaflet-control-attribution { font-size: 11px; }
+  </style>
 </head>
 <body>
-  <div id="map"></div> 
+  <div id="map"></div>
 
-  <div class="toolbar">
-    <label for="layer">Layer</label>
-    <select id="layer">
-      <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS SNPP True Color</option>
-      <option value="VIIRS_NOAA20_CorrectedReflectance_TrueColor" selected>VIIRS NOAA‑20 True Color</option>
-      <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra True Color</option>
-    </select>
+  <div class="toolbar">
+    <label for="layer">Layer</label>
+    <select id="layer">
+      <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS SNPP True Color</option>
+      <option value="VIIRS_NOAA20_CorrectedReflectance_TrueColor" selected>VIIRS NOAA‑20 True Color</option>
+      <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra True Color</option>
+    </select>
 
-    <label for="date">Date</label>
-    <input type="date" id="date" />
-    <button id="todayButton">Today</button> 
+    <label for="date">Date</label>
+    <input type="date" id="date" />
+    <button id="todayButton">Today</button>
 
-    <button id="export">Export GeoJSON</button>
-  </div>
+    <button id="export">Export GeoJSON</button>
+  </div>
 
-  <script>
+  <script>
     L.Icon.Default.imagePath = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 
+    const todayISO = new Date().toISOString().slice(0,10);
+    const defaultDateISO = todayISO;
+    const initialLayerId = 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
+
     const map = L.map('map', {
-        center: [20, 0],
-        zoom: 3,
-        // Default L.CRS.EPSG3857 used for standard OSM tiles
+      center: [20, 0],
+      zoom: 3
     });
-    
-    // --- OPENSTREETMAP TILE LAYER (The Test) -----------------------------------
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-    // --------------------------------------------------------------------------
-    
-    // --- SIZING FIX (The last one needed) -------------------------------------
-    // Guaranteed size update on load and user interaction
-    const resizeMap = function() {
-        map.invalidateSize(true);
-    };
 
-    map.on('load', resizeMap);
-    map.on('moveend', resizeMap); 
     window.onload = function() {
-        resizeMap();
-        setTimeout(resizeMap, 50); 
+      map.invalidateSize(true);
+      setTimeout(() => map.invalidateSize(true), 50);
     };
-    // --------------------------------------------------------------------------
-    
+
     document.addEventListener('DOMContentLoaded', function() {
-        
-        map.zoomControl.setPosition('bottomleft');
-        map.attributionControl.setPrefix(false);
-        
-        // Remove GIBS-specific attribution for this test
-        map.attributionControl.addAttribution('© Leaflet contributors');
-        
-        // --- Drawing layer + controls (left intact) --------------------------
-        const drawnItems = new L.FeatureGroup().addTo(map);
-        const drawControl = new L.Control.Draw({
-            position: 'bottomleft',
-            edit: { featureGroup: drawnItems },
-            draw: {
-                polygon: { allowIntersection: false, showArea: true },
-                rectangle: true,
-                polyline: false,
-                circle: false,
-                marker: true, 
-                circlemarker: false
-            }
-        });
-        map.addControl(drawControl);
+      map.zoomControl.setPosition('bottomleft');
+      map.attributionControl.setPrefix(false);
+      map.attributionControl.addAttribution('Imagery © NASA EOSDIS GIBS');
+      map.attributionControl.addAttribution('© Leaflet contributors');
 
-        map.on(L.Draw.Event.CREATED, (e) => {
-            drawnItems.addLayer(e.layer);
-        });
+      const drawnItems = new L.FeatureGroup().addTo(map);
+      const drawControl = new L.Control.Draw({
+        position: 'bottomleft',
+        edit: { featureGroup: drawnItems },
+        draw: {
+          polygon: { allowIntersection: false, showArea: true },
+          rectangle: true,
+          polyline: false,
+          circle: false,
+          marker: true,
+          circlemarker: false
+        }
+      });
+      map.addControl(drawControl);
 
-        document.getElementById('export').addEventListener('click', () => {
-            const fc = drawnItems.toGeoJSON();
-            const blob = new Blob([JSON.stringify(fc, null, 2)], { type: 'application/geo+json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'drawings.geojson';
-            document.body.appendChild(a);
-            a.click();
-            URL.revokeObjectURL(url);
-            a.remove();
-        });
+      map.on(L.Draw.Event.CREATED, (e) => {
+        drawnItems.addLayer(e.layer);
+      });
 
-        // --- UI Logic (Layer/Date functionality is disabled for this test) -----
-        const todayISO = new Date().toISOString().slice(0,10);
-        const dateInput = document.getElementById('date');
+      document.getElementById('export').addEventListener('click', () => {
+        const fc = drawnItems.toGeoJSON();
+        const blob = new Blob([JSON.stringify(fc, null, 2)], { type: 'application/geo+json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'drawings.geojson';
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        a.remove();
+      });
+
+      let currentImageryLayer = null;
+
+      function buildImageryLayer(layerId, dateISO) {
+        return L.tileLayer(
+          `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layerId}/default/${dateISO}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
+          {
+            tileSize: 256,
+            attribution: 'Imagery © NASA EOSDIS GIBS',
+            crossOrigin: true
+          }
+        );
+      }
+
+      function setImageryLayer(layerId, dateISO) {
+        if (currentImageryLayer) {
+          map.removeLayer(currentImageryLayer);
+        }
+        currentImageryLayer = buildImageryLayer(layerId, dateISO);
+        currentImageryLayer.addTo(map);
+      }
+
+      const dateInput = document.getElementById('date');
+      dateInput.value = defaultDateISO;
+      dateInput.min = '2000-01-01';
+      dateInput.max = todayISO;
+
+      dateInput.addEventListener('change', (e) => {
+        const d = e.target.value || todayISO;
+        setImageryLayer(layerSelect.value, d);
+      });
+
+      const layerSelect = document.getElementById('layer');
+      layerSelect.value = initialLayerId;
+
+      setImageryLayer(layerSelect.value, dateInput.value);
+
+      layerSelect.addEventListener('change', (e) => {
+        const dateISO = dateInput.value || todayISO;
+        setImageryLayer(e.target.value, dateISO);
+      });
+
+      const todayButton = document.getElementById('todayButton');
+      todayButton.addEventListener('click', () => {
         dateInput.value = todayISO;
-        dateInput.min = '2000-01-01';
-        dateInput.max = todayISO;
-        
-        // Disable layer switching functionality during this test
-        const layerSelect = document.getElementById('layer');
-        layerSelect.disabled = true;
-
-        // The date change logic is irrelevant for the OSM layer, but we keep the button functions
-        const todayButton = document.getElementById('todayButton');
-        todayButton.addEventListener('click', () => { dateInput.value = todayISO; });
-        
-    }); // End of DOMContentLoaded listener
-  </script>
+        setImageryLayer(layerSelect.value, todayISO);
+      });
+    });
+  </script>
 </body>
 </html>
