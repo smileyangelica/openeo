@@ -12,6 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
   <style>
+    /* NOTE: We are keeping the CSS, but adding an inline fix below for robustness */
     html, body, #map { height: 100%; margin: 0; }
     .toolbar {
       position: absolute; z-index: 1000; top: 10px; left: 10px;
@@ -29,7 +30,7 @@
   </style>
 </head>
 <body>
-  <div id="map"></div>
+    <div id="map" style="height: 100vh;"></div>
 
   <div class="toolbar">
     <label for="layer">Layer</label>
@@ -48,7 +49,6 @@
 
   <script>
     // --- FIX for GitHub Project Pages: Set Leaflet's image path ---
-    // This resolves missing marker/control images that prevent the map from loading.
     L.Icon.Default.imagePath = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 
     // --- Map setup -----------------------------------------------------------
@@ -82,3 +82,101 @@
         marker: false,
         circlemarker: false
       }
+    });
+    map.addControl(drawControl);
+
+    map.on(L.Draw.Event.CREATED, (e) => {
+      drawnItems.addLayer(e.layer);
+    });
+
+    document.getElementById('export').addEventListener('click', () => {
+      const fc = drawnItems.toGeoJSON();
+      const blob = new Blob([JSON.stringify(fc, null, 2)], { type: 'application/geo+json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'drawings.geojson';
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
+    });
+
+    // --- NASA GIBS WMS (basic imagery) --------------------------------------
+    // WMS endpoint in EPSG:3857 (Web Mercator); no key required.
+    const GIBS_WMS = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?';
+
+    // One transparent overlay with boundaries/labels to help orientation.
+    const overlays = L.tileLayer.wms(GIBS_WMS, {
+      layers: 'Coastlines,Reference_Features',
+      format: 'image/png',
+      transparent: true,
+      version: '1.3.0'
+    }).addTo(map);
+
+    let currentImageryLayer = null;
+
+    function buildImageryLayer(layerId, dateISO) {
+      const timeParam = dateISO || todayISO;
+      return L.tileLayer.wms(GIBS_WMS, {
+        layers: layerId,
+        format: 'image/jpeg',   // faster for full-color imagery
+        transparent: false,
+        version: '1.3.0',
+        time: timeParam,
+        crossOrigin: 'anonymous'
+      });
+    }
+
+    function setImageryLayer(layerId, dateISO) {
+      if (currentImageryLayer) {
+        map.removeLayer(currentImageryLayer);
+      }
+      currentImageryLayer = buildImageryLayer(layerId, dateISO);
+      currentImageryLayer.addTo(map);
+    }
+
+    // UI: Date picker -> update TIME parameter on WMS layer
+    const dateInput = document.getElementById('date');
+    dateInput.value = defaultDateISO;
+    dateInput.min = '2000-01-01';
+    dateInput.max = todayISO;
+
+    dateInput.addEventListener('change', (e) => {
+      const d = e.target.value || todayISO;
+      if (!currentImageryLayer) return;
+      currentImageryLayer.setParams({ time: d });
+    });
+
+    const layerSelect = document.getElementById('layer');
+    layerSelect.value = initialLayerId;
+
+    // Initialize first layer
+    setImageryLayer(layerSelect.value, dateInput.value);
+
+    // Keep imagery in sync when switching between layers
+    layerSelect.addEventListener('change', (e) => {
+      const dateISO = dateInput.value || todayISO;
+      setImageryLayer(e.target.value, dateISO);
+    });
+    
+    // --- 'Today' Feature Logic ------------------------------------------
+    const todayButton = document.getElementById('todayButton');
+
+    function setToToday() {
+        // 1. Set the input value to the current date (in user's local timezone)
+        dateInput.value = todayISO;
+        
+        // 2. Trigger map layer update
+        if (currentImageryLayer) {
+            currentImageryLayer.setParams({ time: todayISO });
+        }
+    }
+    
+    // Attach event listener to the new button
+    todayButton.addEventListener('click', setToToday);
+    // ------------------------------------------------------------------------
+
+  </script>
+</body>
+</html>
