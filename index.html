@@ -59,15 +59,15 @@
   </div>
 
   <script>
-    L.Icon.Default.imagePath = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
-
     const todayISO = new Date().toISOString().slice(0,10);
     const defaultDateISO = todayISO;
     const initialLayerId = 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
 
     const map = L.map('map', {
       center: [20, 0],
-      zoom: 3
+      zoom: 2,
+      minZoom: 1,
+      maxZoom: 9
     });
 
     window.onload = function() {
@@ -120,6 +120,8 @@
           `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layerId}/default/${dateISO}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
           {
             tileSize: 256,
+            maxZoom: 9,
+            minZoom: 1,
             attribution: 'Imagery © NASA EOSDIS GIBS',
             crossOrigin: true
           }
