@@ -16,12 +16,7 @@
   <style>
     /* Ensure the page and map take up 100% of the viewport */
     html, body { height: 100%; margin: 0; }
-    /* CRITICAL: Ensure #map has a definite position for z-index stacking */
-    #map { 
-        height: 100vh; 
-        width: 100vw; 
-        position: relative; /* Added for z-index stability */
-    } 
+    #map { height: 100vh; width: 100vw; } 
 
     .toolbar {
       /* Toolbar Visibility Fix: position and maximum z-index */
@@ -76,7 +71,7 @@
         const defaultDateISO = todayISO;
         const initialLayerId = 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
 
-        // Re-implementing L.Proj.CRS as it is the most reliable way to handle GIBS WMS
+        // Explicitly define the WMS CRS
         const GIBSEPSG3857 = new L.Proj.CRS('EPSG:3857', {
             origin: [-20037508.34, 20037508.34],
             resolutions: L.Util.createGisMapResolutions(156543.033928, 13) 
@@ -85,7 +80,7 @@
         const map = L.map('map', {
             center: [20, 0],
             zoom: 3,
-            crs: GIBSEPSG3857 // Use the custom Proj CRS
+            crs: L.CRS.EPSG3857 // Use L.CRS.EPSG3857 (Standard Leaflet CRS) for simplicity
         });
 
         map.zoomControl.setPosition('bottomleft');
@@ -93,12 +88,10 @@
         map.attributionControl.addAttribution('Imagery © NASA EOSDIS GIBS');
         map.attributionControl.addAttribution('© Leaflet contributors');
         
-        // Final Sizing Fix: Ensure invalidateSize runs, but also keep the delayed version
-        // as a backup, as one of them *will* catch the sizing event.
-        map.invalidateSize(); 
-
+        // CRITICAL FIX: Run invalidateSize with a short delay (100ms) to ensure the 
+        // browser has fully rendered the 100vh/100vw CSS before calculating the map size.
         setTimeout(function() {
-             map.invalidateSize(true); // Pass 'true' to redraw map center/fit if needed
+             map.invalidateSize();
         }, 100); 
 
         // --- Drawing layer + controls -------------------------------------------
@@ -142,8 +135,7 @@
             layers: 'Coastlines,Reference_Features',
             format: 'image/png',
             transparent: true,
-            version: '1.3.0',
-            crs: GIBSEPSG3857 // Ensure CRS is specified for the layer too
+            version: '1.3.0'
         }).addTo(map);
 
         let currentImageryLayer = null;
@@ -156,8 +148,7 @@
                 transparent: false,
                 version: '1.3.0',
                 time: timeParam,
-                crossOrigin: 'anonymous',
-                crs: GIBSEPSG3857 // Ensure CRS is specified for the layer too
+                crossOrigin: 'anonymous'
             });
         }
 
