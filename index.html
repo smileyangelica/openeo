@@ -12,10 +12,10 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
   <style>
-    /* NOTE: We are keeping the CSS, but adding an inline fix below for robustness */
     html, body, #map { height: 100%; margin: 0; }
     .toolbar {
-      position: absolute; z-index: 1000; top: 10px; left: 10px;
+      /* FIX: Increased z-index to ensure toolbar is on top of the map (z-index of 1000 is usually plenty) */
+      position: absolute; z-index: 1001; top: 10px; left: 10px; 
       background: rgba(255,255,255,.92); backdrop-filter: blur(4px);
       border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.12);
       padding: 10px; font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -30,30 +30,30 @@
   </style>
 </head>
 <body>
-    <div id="map" style="height: 100vh;"></div>
+    <div id="map" style="height: 100vh;"></div> 
 
   <div class="toolbar">
     <label for="layer">Layer</label>
     <select id="layer">
-            <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS SNPP True Color</option>
+      <option value="VIIRS_SNPP_CorrectedReflectance_TrueColor">VIIRS SNPP True Color</option>
       <option value="VIIRS_NOAA20_CorrectedReflectance_TrueColor" selected>VIIRS NOAA‑20 True Color</option>
       <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS Terra True Color</option>
     </select>
 
     <label for="date">Date</label>
     <input type="date" id="date" />
-    <button id="todayButton">Today</button> 
+        <button id="todayButton">Today</button> 
 
     <button id="export">Export GeoJSON</button>
   </div>
 
   <script>
-    // --- FIX for GitHub Project Pages: Set Leaflet's image path ---
+    // --- Leaflet Path Fix (Necessary for GitHub Project Pages Deployment) ---
     L.Icon.Default.imagePath = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 
     // --- Map setup -----------------------------------------------------------
     const todayISO = new Date().toISOString().slice(0,10);
-    // Set the default date to today's date
+    // UPDATED: Sets the default display date to today's date
     const defaultDateISO = todayISO;
     const initialLayerId = 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
 
@@ -176,6 +176,12 @@
     // Attach event listener to the new button
     todayButton.addEventListener('click', setToToday);
     // ------------------------------------------------------------------------
+    
+    // FIX: Force Leaflet to re-render the map after initialization.
+    // This often fixes tile loading issues in deployed environments.
+    setTimeout(() => {
+        map.invalidateSize();
+    }, 100);
 
   </script>
 </body>
