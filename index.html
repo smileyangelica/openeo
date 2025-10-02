@@ -14,12 +14,13 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
   <style>
-    /* Ensure the page and map take up 100% of the viewport */
+    /* FINAL CSS FIX: Ensure map has a solid background to prevent transparency issues */
     html, body { height: 100%; margin: 0; }
     #map { 
         height: 100vh; 
         width: 100vw; 
-        position: relative; /* Added for z-index stability */
+        position: relative; 
+        background: #000; /* Added a black background for clear map boundary */
     } 
 
     .toolbar {
@@ -64,44 +65,45 @@
   </div>
 
   <script>
-    // CRITICAL FIX: Leaflet marker path and map definition moved here
-    // to execute immediately after the Leaflet script load.
+    // --- GLOBAL SETUP (Must run immediately after scripts load) ----------------
     L.Icon.Default.imagePath = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 
     const todayISO = new Date().toISOString().slice(0,10);
     const defaultDateISO = todayISO;
     const initialLayerId = 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
 
-    // Re-implementing L.Proj.CRS as it is the most reliable way to handle GIBS WMS
+    // Define the custom CRS object
     const GIBSEPSG3857 = new L.Proj.CRS('EPSG:3857', {
         origin: [-20037508.34, 20037508.34],
         resolutions: L.Util.createGisMapResolutions(156543.033928, 13) 
     });
     
+    // Initialize the Map object immediately
     const map = L.map('map', {
         center: [20, 0],
         zoom: 3,
         crs: GIBSEPSG3857 // Use the custom Proj CRS
     });
     
-    // CRITICAL FIX: Place the rest of the code inside DOMContentLoaded
-    // to ensure UI elements exist before being accessed.
+    // --- CRITICAL: SIZING FIX on WINDOW LOAD ------------------------------------
+    // This runs AFTER all page content, CSS, and external resources are loaded, 
+    // guaranteeing the map canvas size is correct.
+    window.onload = function() {
+        map.invalidateSize(true);
+        // Fallback for extreme rendering cases
+        setTimeout(function() {
+             map.invalidateSize(true); 
+        }, 500); 
+    };
+    
+    // --- UI & CONTROL SETUP (Runs after map object exists) ---------------------
     document.addEventListener('DOMContentLoaded', function() {
         
-        // --- Map setup (non-critical code) ---------------------------------------
         map.zoomControl.setPosition('bottomleft');
         map.attributionControl.setPrefix(false);
         map.attributionControl.addAttribution('Imagery © NASA EOSDIS GIBS');
         map.attributionControl.addAttribution('© Leaflet contributors');
         
-        // Final Sizing Fix: This *must* run to expand the map canvas.
-        map.invalidateSize(); 
-
-        // Delayed check for resizing (backup)
-        setTimeout(function() {
-             map.invalidateSize(true); 
-        }, 100); 
-
         // --- Drawing layer + controls -------------------------------------------
         const drawnItems = new L.FeatureGroup().addTo(map);
         const drawControl = new L.Control.Draw({
