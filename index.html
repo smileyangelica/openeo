@@ -14,13 +14,13 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
   <style>
-    /* FINAL CSS FIX: Ensure map has a solid background to prevent transparency issues */
+    /* FINAL CSS: Ensure map has a solid background and correct sizing */
     html, body { height: 100%; margin: 0; }
     #map { 
         height: 100vh; 
         width: 100vw; 
         position: relative; 
-        background: #000; /* Added a black background for clear map boundary */
+        background: #000; /* Black background to clearly show map boundaries if sizing fails */
     } 
 
     .toolbar {
@@ -65,14 +65,13 @@
   </div>
 
   <script>
-    // --- GLOBAL SETUP (Must run immediately after scripts load) ----------------
+    // --- GLOBAL SETUP (CRITICAL: Runs immediately) --------------------------
     L.Icon.Default.imagePath = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
 
     const todayISO = new Date().toISOString().slice(0,10);
     const defaultDateISO = todayISO;
     const initialLayerId = 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
 
-    // Define the custom CRS object
     const GIBSEPSG3857 = new L.Proj.CRS('EPSG:3857', {
         origin: [-20037508.34, 20037508.34],
         resolutions: L.Util.createGisMapResolutions(156543.033928, 13) 
@@ -82,19 +81,25 @@
     const map = L.map('map', {
         center: [20, 0],
         zoom: 3,
-        crs: GIBSEPSG3857 // Use the custom Proj CRS
+        crs: GIBSEPSG3857 
     });
     
-    // --- CRITICAL: SIZING FIX on WINDOW LOAD ------------------------------------
-    // This runs AFTER all page content, CSS, and external resources are loaded, 
-    // guaranteeing the map canvas size is correct.
-    window.onload = function() {
+    // --- FINAL SIZING FIX: Force sizing on load/move ---------------------------
+    // This is the last and most effective method to fix map sizing after load.
+    const resizeMap = function() {
         map.invalidateSize(true);
-        // Fallback for extreme rendering cases
-        setTimeout(function() {
-             map.invalidateSize(true); 
-        }, 500); 
     };
+
+    map.on('load', resizeMap);
+    map.on('moveend', resizeMap); // Catches zoom/pan actions
+    
+    // Also run on window load as an absolute final check
+    window.onload = function() {
+        resizeMap();
+        // A very short delay is sometimes needed on slow-rendering browsers
+        setTimeout(resizeMap, 50); 
+    };
+    // --------------------------------------------------------------------------
     
     // --- UI & CONTROL SETUP (Runs after map object exists) ---------------------
     document.addEventListener('DOMContentLoaded', function() {
