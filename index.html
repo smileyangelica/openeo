@@ -14,13 +14,23 @@
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
   <style>
-    html, body, #map { height: 100%; margin: 0; }
+    /* Ensure the page and map take up 100% of the viewport */
+    html, body { height: 100%; margin: 0; }
+    #map { height: 100vh; width: 100vw; } 
+
     .toolbar {
-      /* FIX: Aggressively increased z-index to ensure toolbar is visible above the map */
-      position: absolute; z-index: 9999; top: 10px; left: 10px; 
-      background: rgba(255,255,255,.92); backdrop-filter: blur(4px);
-      border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.12);
-      padding: 10px; font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      /* Toolbar Visibility Fix: position and maximum z-index */
+      position: absolute; 
+      z-index: 99999; /* Aggressive z-index to guarantee visibility */
+      top: 10px; 
+      left: 10px; 
+      
+      /* Appearance */
+      background: rgba(255,255,255,0.95); 
+      border-radius: 8px; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      padding: 10px; 
+      font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
     }
     .toolbar label { margin-right: 6px; font-weight: 600; }
     .toolbar select, .toolbar input[type="date"], .toolbar button {
@@ -32,7 +42,7 @@
   </style>
 </head>
 <body>
-  <div id="map" style="height: 100vh;"></div> 
+  <div id="map"></div> 
 
   <div class="toolbar">
     <label for="layer">Layer</label>
@@ -48,29 +58,35 @@
 
     <button id="export">Export GeoJSON</button>
   </div>
- 
-   <script>
+
+  <script>
+    // Leaflet marker path fix (essential for deployment reliability)
+    L.Icon.Default.imagePath = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/';
+
     // --- Map setup -----------------------------------------------------------
     const todayISO = new Date().toISOString().slice(0,10);
     const defaultDateISO = todayISO;
     const initialLayerId = 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
 
-    // CRITICAL FIX: Explicitly define the WMS CRS (coordinate reference system)
+    // Explicitly define the WMS CRS (Coordinate Reference System) for robustness
     const GIBSEPSG3857 = new L.Proj.CRS('EPSG:3857', {
         origin: [-20037508.34, 20037508.34],
-        resolutions: L.Util.createGisMapResolutions(156543.033928, 13) // This covers common GIBS scales
+        resolutions: L.Util.createGisMapResolutions(156543.033928, 13) 
     });
     
     const map = L.map('map', {
       center: [20, 0],
       zoom: 3,
-      crs: GIBSEPSG3857 // Apply the custom CRS to the map
+      crs: GIBSEPSG3857 
     });
 
     map.zoomControl.setPosition('bottomleft');
     map.attributionControl.setPrefix(false);
     map.attributionControl.addAttribution('Imagery © NASA EOSDIS GIBS');
     map.attributionControl.addAttribution('© Leaflet contributors');
+    
+    // Force the map to calculate its size immediately
+    map.invalidateSize(); 
 
     // --- Drawing layer + controls -------------------------------------------
     const drawnItems = new L.FeatureGroup().addTo(map);
@@ -105,10 +121,10 @@
       a.remove();
     });
 
-    // --- NASA GIBS WMS (basic imagery) --------------------------------------
+    // --- NASA GIBS WMS (Imagery Layers) --------------------------------------
     const GIBS_WMS = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?';
 
-    // One transparent overlay with boundaries/labels to help orientation.
+    // Transparent overlay with boundaries/labels
     const overlays = L.tileLayer.wms(GIBS_WMS, {
       layers: 'Coastlines,Reference_Features',
       format: 'image/png',
