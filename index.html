@@ -8,13 +8,16 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script> 
+  
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.css">
   <script src="https://cdn.jsdelivr.net/npm/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 
   <style>
     html, body, #map { height: 100%; margin: 0; }
     .toolbar {
-      position: absolute; z-index: 1001; top: 10px; left: 10px; 
+      /* FIX: Aggressively increased z-index to ensure toolbar is visible above the map */
+      position: absolute; z-index: 9999; top: 10px; left: 10px; 
       background: rgba(255,255,255,.92); backdrop-filter: blur(4px);
       border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.12);
       padding: 10px; font: 14px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -29,7 +32,7 @@
   </style>
 </head>
 <body>
-    <div id="map" style="height: 100vh;"></div> 
+  <div id="map" style="height: 100vh;"></div> 
 
   <div class="toolbar">
     <label for="layer">Layer</label>
@@ -45,30 +48,29 @@
 
     <button id="export">Export GeoJSON</button>
   </div>
-
-  <script>
+ 
+   <script>
     // --- Map setup -----------------------------------------------------------
     const todayISO = new Date().toISOString().slice(0,10);
     const defaultDateISO = todayISO;
     const initialLayerId = 'VIIRS_NOAA20_CorrectedReflectance_TrueColor';
 
+    // CRITICAL FIX: Explicitly define the WMS CRS (coordinate reference system)
+    const GIBSEPSG3857 = new L.Proj.CRS('EPSG:3857', {
+        origin: [-20037508.34, 20037508.34],
+        resolutions: L.Util.createGisMapResolutions(156543.033928, 13) // This covers common GIBS scales
+    });
+    
     const map = L.map('map', {
       center: [20, 0],
-      zoom: 3
+      zoom: 3,
+      crs: GIBSEPSG3857 // Apply the custom CRS to the map
     });
 
     map.zoomControl.setPosition('bottomleft');
     map.attributionControl.setPrefix(false);
+    map.attributionControl.addAttribution('Imagery © NASA EOSDIS GIBS');
     map.attributionControl.addAttribution('© Leaflet contributors');
-    
-    // --- DIAGNOSTIC STEP: Load OpenStreetMap (non-WMS) as a base layer ---
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: 'Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-
-    // If you see the OSM map, the WMS code for GIBS is the problem.
-    // If you still see a black screen, the Leaflet initialization is the problem.
 
     // --- Drawing layer + controls -------------------------------------------
     const drawnItems = new L.FeatureGroup().addTo(map);
@@ -103,18 +105,17 @@
       a.remove();
     });
 
-    // --- NASA GIBS WMS (basic imagery) - Logic is kept for the UI, but layers are commented out ---
+    // --- NASA GIBS WMS (basic imagery) --------------------------------------
     const GIBS_WMS = 'https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi?';
 
-    /*
-    // These layers are temporarily removed to diagnose the issue:
+    // One transparent overlay with boundaries/labels to help orientation.
     const overlays = L.tileLayer.wms(GIBS_WMS, {
       layers: 'Coastlines,Reference_Features',
       format: 'image/png',
       transparent: true,
-      version: '1.3.0'
+      version: '1.3.0',
+      crs: GIBSEPSG3857 
     }).addTo(map);
-    */
 
     let currentImageryLayer = null;
 
@@ -126,7 +127,8 @@
         transparent: false,
         version: '1.3.0',
         time: timeParam,
-        crossOrigin: 'anonymous'
+        crossOrigin: 'anonymous',
+        crs: GIBSEPSG3857 
       });
     }
 
@@ -135,7 +137,7 @@
         map.removeLayer(currentImageryLayer);
       }
       currentImageryLayer = buildImageryLayer(layerId, dateISO);
-      // currentImageryLayer.addTo(map); // Don't add to map yet, as it's the suspected culprit
+      currentImageryLayer.addTo(map);
     }
 
     // UI: Date picker -> update TIME parameter on WMS layer
@@ -148,7 +150,6 @@
       const d = e.target.value || todayISO;
       if (!currentImageryLayer) return;
       currentImageryLayer.setParams({ time: d });
-      currentImageryLayer.addTo(map); // Re-add layer when date changes
     });
 
     const layerSelect = document.getElementById('layer');
@@ -156,15 +157,11 @@
 
     // Initialize first layer
     setImageryLayer(layerSelect.value, dateInput.value);
-    
-    // Initial GIBS Layer Added: (Uncomment the line below if OSM works, then re-test)
-    // currentImageryLayer.addTo(map);
 
     // Keep imagery in sync when switching between layers
     layerSelect.addEventListener('change', (e) => {
       const dateISO = dateInput.value || todayISO;
       setImageryLayer(e.target.value, dateISO);
-      currentImageryLayer.addTo(map); // Re-add layer when layer changes
     });
     
     // --- 'Today' Feature Logic ------------------------------------------
@@ -175,12 +172,12 @@
         
         if (currentImageryLayer) {
             currentImageryLayer.setParams({ time: todayISO });
-            currentImageryLayer.addTo(map); // Re-add layer when 'Today' clicked
         }
     }
     
     todayButton.addEventListener('click', setToToday);
     // ------------------------------------------------------------------------
+    
   </script>
 </body>
 </html>
